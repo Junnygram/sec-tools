@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "s3_bucket_name" {
   description = "Name of the S3 bucket for Terraform state"
   type        = string
-  default     = "security-tools-terraform-state"
+  default     = "security-tools-bucket"
 }
 
 variable "ami_id" {
@@ -25,7 +25,7 @@ variable "instance_type" {
 variable "key_name" {
   description = "Name of the SSH key pair"
   type        = string
-  default     = "security-tools-key"
+  default     = "junnOpsKey"
 }
 
 variable "environment" {
