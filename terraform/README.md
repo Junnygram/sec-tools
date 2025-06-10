@@ -1,7 +1,3 @@
-# Terraform Infrastructure for Security Tools Suite
-
-This directory contains Terraform code to provision the AWS infrastructure required for the Security Tools Suite.
-
 ## Resources Created
 
 - EC2 instance for running the application
@@ -49,13 +45,13 @@ terraform init -backend-config="bucket=your-bucket-name" \
 
 ## Variables
 
-| Name | Description | Default |
-|------|-------------|---------|
-| aws_region | AWS region to deploy resources | us-east-1 |
-| ami_id | AMI ID for EC2 instance | ami-0230bd60aa48260c6 (Amazon Linux 2) |
-| instance_type | EC2 instance type | t2.small |
-| key_name | Name of the SSH key pair | security-tools-key |
-| environment | Environment name | dev |
+| Name          | Description                    | Default                                |
+| ------------- | ------------------------------ | -------------------------------------- |
+| aws_region    | AWS region to deploy resources | us-east-1                              |
+| ami_id        | AMI ID for EC2 instance        | ami-0230bd60aa48260c6 (Amazon Linux 2) |
+| instance_type | EC2 instance type              | t2.small                               |
+| key_name      | Name of the SSH key pair       | security-tools-key                     |
+| environment   | Environment name               | dev                                    |
 
 ## Outputs
 
