@@ -3,10 +3,10 @@ provider "aws" {
 }
 
 # S3 bucket for Terraform state (uncomment if you need to create it)
-# resource "aws_s3_bucket" "terraform_state" {
-#   bucket = var.s3_bucket_name
-#   force_destroy = true
-# }
+resource "aws_s3_bucket" "terraform_state" {
+  bucket = var.s3_bucket_name
+  force_destroy = true
+}
 
 # EC2 instance for the application
 resource "aws_instance" "app_server" {
