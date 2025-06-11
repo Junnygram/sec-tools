@@ -28,6 +28,7 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION  }}
   S3_BUCKET: security-tools-buckett
   TF_VAR_key_name: junnyOpsKey
+  # TF_VAR_key_name: ${{ secrets.SSH_KEY_NAME }}
 
 concurrency:
   group: terraform-${{ github.ref }}
