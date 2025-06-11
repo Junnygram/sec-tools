@@ -84,7 +84,18 @@ jobs:
       - name: Terraform Destroy
         id: destroy
         if: github.event.inputs.action == 'destroy'
-        run: terraform destroy -auto-approve -input=false
+        run: |
+          terraform destroy -auto-approve -input=false
+          
+          # Delete the Terraform state file from S3 after successful destroy
+          if [ $? -eq 0 ]; then
+            echo "Infrastructure destroyed successfully, deleting state file..."
+            aws s3 rm s3://$S3_BUCKET/terraform.tfstate
+            echo "Terraform state file deleted successfully"
+          else
+            echo "Infrastructure destruction failed, keeping state file"
+            exit 1
+          fi
 
       - name: Output EC2 Information
         if: github.event_name == 'push' && github.event.inputs.action != 'destroy' && steps.apply.outcome == 'success'

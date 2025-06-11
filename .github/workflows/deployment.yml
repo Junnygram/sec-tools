@@ -9,6 +9,12 @@ on:
       - 'backend/**'
       - 'docker-compose.yml'
   workflow_dispatch: # Enables manual trigger
+    inputs:
+      ssh_debug:
+        description: 'Enable SSH debugging'
+        required: false
+        type: boolean
+        default: false
   pull_request:
     branches:
       - main
@@ -22,7 +28,6 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ vars.AWS_REGION }}
   EC2_HOST: ${{ secrets.EC2_HOST }}
-  # EC2_USERNAME: ${{ secrets.EC2_USERNAME  }}
   EC2_USERNAME: ubuntu
   SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
@@ -48,13 +53,17 @@ jobs:
           echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
-          cat ~/.ssh/id_rsa | wc -l
-          ls -la ~/.ssh/id_rsa
 
       - name: Deploy to EC2
         run: |
+          # Set SSH debug flag if requested
+          SSH_DEBUG=""
+          if [[ "${{ github.event.inputs.ssh_debug }}" == "true" ]]; then
+            SSH_DEBUG="-v"
+          fi
+          
           # SSH into EC2 and deploy
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} << 'EOF'
+          ssh $SSH_DEBUG -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} << 'EOF'
             # Install Docker if not already installed
             if ! command -v docker &> /dev/null; then
               echo "Installing Docker..."
