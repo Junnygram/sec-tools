@@ -1,64 +1,142 @@
-name: 'Deploy to EC2'
+# name: 'Deploy to EC2'
+
+# on:
+#   push:
+#     branches:
+#       - main
+#     paths:
+#       - 'frontend/**'
+#       - 'backend/**'
+#       - 'docker-compose.yml'
+#   workflow_dispatch: # Enables manual trigger
+#   pull_request:
+#     branches:
+#       - main
+#     paths:
+#       - 'frontend/**'
+#       - 'backend/**'
+#       - 'docker-compose.yml'
+
+# env:
+#   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+#   EC2_HOST: ${{ secrets.EC2_HOST }}
+#   EC2_USERNAME: ${{ secrets.EC2_USERNAME || 'ec2-user' }}
+#   SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+# jobs:
+#   deploy:
+#     name: 'Deploy to EC2'
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout source code
+#         uses: actions/checkout@v4
+
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ env.AWS_REGION }}
+
+#       - name: Setup SSH
+#         run: |
+#           mkdir -p ~/.ssh
+#           echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+#           chmod 600 ~/.ssh/id_rsa
+#           ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
+
+#       - name: Deploy to EC2
+#         run: |
+#           # Copy project files to EC2
+#           scp -r ./* ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }}:~/sec-tools/
+
+#           # SSH into EC2 and deploy
+#           ssh ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} << 'EOF'
+#             # Navigate to project directory
+#             cd ~/sec-tools
+
+#             # Install Docker if not already installed
+#             if ! command -v docker &> /dev/null; then
+#               echo "Installing Docker..."
+#               sudo yum update -y
+#               sudo yum install -y docker
+#               sudo service docker start
+#               sudo usermod -a -G docker $USER
+#               sudo systemctl enable docker
+#             fi
+
+#             # Install Docker Compose if not already installed
+#             if ! command -v docker-compose &> /dev/null; then
+#               echo "Installing Docker Compose..."
+#               sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+#               sudo chmod +x /usr/local/bin/docker-compose
+#             fi
+
+#             # Build and start containers
+#             docker-compose down
+#             docker-compose up --build -d
+
+#             # Print container status
+#             docker-compose ps
+
+#             # Get the public IP address
+#             PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+#             echo "Application deployed successfully!"
+#             echo "Frontend URL: http://$PUBLIC_IP:3000"
+#             echo "Backend URL: http://$PUBLIC_IP:8080"
+#           EOF
+
+name: EC2 Deploy Debug
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'frontend/**'
-      - 'backend/**'
-      - 'docker-compose.yml'
-  workflow_dispatch: # Enables manual trigger
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'frontend/**'
-      - 'backend/**'
-      - 'docker-compose.yml'
-
-env:
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
-  EC2_HOST: ${{ secrets.EC2_HOST }}
-  EC2_USERNAME: ${{ secrets.EC2_USERNAME || 'ec2-user' }}
-  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+  workflow_dispatch:
 
 jobs:
   deploy:
-    name: 'Deploy to EC2'
     runs-on: ubuntu-latest
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USERNAME: ec2-user
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup SSH
+      - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to EC2
+      - name: Check SSH Key Format
         run: |
-          # Copy project files to EC2
-          scp -r ./* ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }}:~/sec-tools/
+          echo "Key file type:"
+          file ~/.ssh/id_rsa || echo "Error reading key file"
+          echo "Fingerprint:"
+          ssh-keygen -l -f ~/.ssh/id_rsa || echo "Could not get fingerprint"
 
-          # SSH into EC2 and deploy
-          ssh ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} << 'EOF'
-            # Navigate to project directory
-            cd ~/sec-tools
-            
-            # Install Docker if not already installed
+      - name: Test SSH Connection
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $EC2_USERNAME@$EC2_HOST "echo '✅ SSH connection successful'" || echo "❌ SSH connection failed"
+
+      - name: Test SCP File Transfer
+        run: |
+          echo "Test file" > test.txt
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no test.txt $EC2_USERNAME@$EC2_HOST:~/test.txt || echo "❌ SCP failed"
+
+      - name: SSH & Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $EC2_USERNAME@$EC2_HOST << 'EOF'
+            set -e
+            echo "✅ Logged into EC2"
+
+            cd ~/sec-tools || mkdir -p ~/sec-tools && cd ~/sec-tools
+            echo "Uploading project..."
+
+            # Docker check
             if ! command -v docker &> /dev/null; then
               echo "Installing Docker..."
               sudo yum update -y
@@ -67,24 +145,22 @@ jobs:
               sudo usermod -a -G docker $USER
               sudo systemctl enable docker
             fi
-            
-            # Install Docker Compose if not already installed
+
+            # Docker Compose check
             if ! command -v docker-compose &> /dev/null; then
               echo "Installing Docker Compose..."
               sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
               sudo chmod +x /usr/local/bin/docker-compose
             fi
-            
-            # Build and start containers
-            docker-compose down
+
+            echo "Starting Docker Compose..."
+            docker-compose down || true
             docker-compose up --build -d
-            
-            # Print container status
+
             docker-compose ps
-            
-            # Get the public IP address
+
             PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-            echo "Application deployed successfully!"
-            echo "Frontend URL: http://$PUBLIC_IP:3000"
-            echo "Backend URL: http://$PUBLIC_IP:8080"
+            echo "✅ Deployment Complete!"
+            echo "Frontend: http://$PUBLIC_IP:3000"
+            echo "Backend: http://$PUBLIC_IP:8080"
           EOF
