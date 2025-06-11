@@ -44,17 +44,19 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_rsa
 
       - name: Deploy to EC2
         run: |
           # Copy project files to EC2
-          scp -r ./* ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }}:~/sec-tools/
+          scp -o StrictHostKeyChecking=no -r ./* ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/sec-tools/
 
           # SSH into EC2 and deploy
-          ssh ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
             # Navigate to project directory
             cd ~/sec-tools
             
