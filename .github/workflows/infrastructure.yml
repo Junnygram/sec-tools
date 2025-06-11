@@ -27,7 +27,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ vars.AWS_REGION }}
   S3_BUCKET: security-tools-buckett
-  TF_VAR_key_name: ${{ secrets.SSH_KEY_NAME || 'security-tools-key' }}
+  TF_VAR_key_name: junnyOpsKey
 
 concurrency:
   group: terraform-${{ github.ref }}
@@ -71,7 +71,7 @@ jobs:
           # Add SSH key to AWS if it doesn't exist
           KEY_NAME=${{ env.TF_VAR_key_name }}
           KEY_EXISTS=$(aws ec2 describe-key-pairs --key-names $KEY_NAME --query 'KeyPairs[*].KeyName' --output text --region $AWS_REGION || echo "")
-          
+
           if [ -z "$KEY_EXISTS" ] && [ -n "${{ secrets.SSH_PUBLIC_KEY }}" ]; then
             echo "Creating SSH key pair $KEY_NAME..."
             aws ec2 import-key-pair --key-name $KEY_NAME --public-key-material "${{ secrets.SSH_PUBLIC_KEY }}" --region $AWS_REGION
@@ -136,7 +136,7 @@ jobs:
         id: destroy
         run: |
           terraform destroy -auto-approve -input=false
-          
+
           # Delete the Terraform state file from S3 after successful destroy
           if [ $? -eq 0 ]; then
             echo "Infrastructure destroyed successfully, deleting state file..."
