@@ -45,7 +45,7 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 400 ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
           cat ~/.ssh/id_rsa | wc -l
           ls -la ~/.ssh/id_rsa
