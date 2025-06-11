@@ -25,7 +25,7 @@ variable "instance_type" {
 variable "key_name" {
   description = "Name of the SSH key pair"
   type        = string
-  default     = "sec-tools.pem"
+  default     = "sec-tool-key.pem"
 }
 
 variable "environment" {
