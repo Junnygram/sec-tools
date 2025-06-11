@@ -27,7 +27,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   S3_BUCKET: ${{ secrets.BUCKET }}
-  TF_VAR_key_name: ${{ secrets.SSH_KEY_NAME }}
+  TF_VAR_key_name: ${{ secrets.SEC-TOOLS }}
 
 concurrency:
   group: terraform-${{ github.ref }}
