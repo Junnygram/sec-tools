@@ -11,9 +11,9 @@ variable "s3_bucket_name" {
 }
 
 variable "ami_id" {
-  description = "AMI ID for EC2 instance (Amazon Linux 2)"
+  description = "AMI ID for EC2 instance (Ubuntu)"
   type        = string
-  default     = "ami-0230bd60aa48260c6" # Amazon Linux 2 in us-east-1, update for other regions
+  default     = "ami-0c7217cdde317cfec" # Ubuntu 22.04 LTS in us-east-1
 }
 
 variable "instance_type" {

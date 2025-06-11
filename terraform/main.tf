@@ -21,25 +21,7 @@ resource "aws_instance" "app_server" {
     ManagedBy = "Terraform"
   }
 
-  user_data = <<-EOF
-    #!/bin/bash
-    # Update system packages
-    yum update -y
-    
-    # Install Docker
-    yum install -y docker
-    systemctl start docker
-    systemctl enable docker
-    usermod -a -G docker ec2-user
-    
-    # Install Docker Compose
-    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-    
-    # Create app directory
-    mkdir -p /home/ec2-user/sec-tools
-    chown ec2-user:ec2-user /home/ec2-user/sec-tools
-  EOF
+  user_data = "#!/bin/bash\napt-get update -y\napt-get install -y docker.io\nsystemctl start docker\nsystemctl enable docker\nusermod -a -G docker ubuntu\nmkdir -p /home/ubuntu/sec-tools\nchown ubuntu:ubuntu /home/ubuntu/sec-tools"
 
   root_block_device {
     volume_size = 20
