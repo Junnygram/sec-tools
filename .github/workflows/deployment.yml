@@ -47,11 +47,13 @@ jobs:
           echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
+          cat ~/.ssh/id_rsa | wc -l
+          ls -la ~/.ssh/id_rsa
 
       - name: Deploy to EC2
         run: |
           # SSH into EC2 and deploy
-          ssh ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} << 'EOF'
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} << 'EOF'
             # Install Docker if not already installed
             if ! command -v docker &> /dev/null; then
               echo "Installing Docker..."
