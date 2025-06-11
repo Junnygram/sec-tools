@@ -13,3 +13,5 @@ output "backend_url" {
   value = "http://${aws_eip.app_eip.public_ip}:8080"
   description = "URL to access the backend API"
 }
+
+#
