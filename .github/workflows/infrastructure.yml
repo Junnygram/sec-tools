@@ -17,7 +17,7 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ vars.AWS_REGION }}
-  S3_BUCKET: ${{ secrets.BUCKET }}
+  S3_BUCKET: ${{ vars.BUCKET }}
   TF_VAR_key_name: ${{ secrets.SSH_KEY  }}
 
 jobs:
@@ -40,7 +40,7 @@ jobs:
 
       - name: Terraform Init
         id: init
-        run: terraform init -backend-config="bucket=$BUCKET" -backend-config="key=terraform.tfstate" -backend-config="region=$AWS_REGION"
+        run: terraform init -backend-config="bucket=$S3_BUCKET" -backend-config="key=terraform.tfstate" -backend-config="region=$AWS_REGION"
 
       - name: Terraform Validate
         id: validate
