@@ -1,29 +1,29 @@
-# name: 'Deploy to EC2'
+name: 'Deploy to EC2'
 
-# on:
-#   push:
-#     branches:
-#       - main
-#     paths:
-#       - 'frontend/**'
-#       - 'backend/**'
-#       - 'docker-compose.yml'
-#   workflow_dispatch: # Enables manual trigger
-#   pull_request:
-#     branches:
-#       - main
-#     paths:
-#       - 'frontend/**'
-#       - 'backend/**'
-#       - 'docker-compose.yml'
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'docker-compose.yml'
+  workflow_dispatch: # Enables manual trigger
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'docker-compose.yml'
 
-# env:
-#   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
-#   EC2_HOST: ${{ secrets.EC2_HOST }}
-#   EC2_USERNAME: ${{ secrets.EC2_USERNAME || 'ec2-user' }}
-#   SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_USERNAME: ${{ secrets.EC2_USERNAME || 'ec2-user' }}
+  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
 # jobs:
 #   deploy:
@@ -89,56 +89,56 @@
 #             echo "Backend URL: http://$PUBLIC_IP:8080"
 #           EOF
 
-name: EC2 Deploy Debug
-
-on:
-  workflow_dispatch:
-
 jobs:
   deploy:
+    name: Deploy to EC2 with Debug
     runs-on: ubuntu-latest
+
     env:
       EC2_HOST: ${{ secrets.EC2_HOST }}
       EC2_USERNAME: ec2-user
 
     steps:
-      - name: Checkout Code
+      - name: 📦 Checkout Code
         uses: actions/checkout@v3
 
-      - name: Setup SSH Key
+      - name: 🔐 Set Up SSH Key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      - name: Check SSH Key Format
+      - name: 🛠️ Check SSH Key Format
         run: |
-          echo "Key file type:"
-          file ~/.ssh/id_rsa || echo "Error reading key file"
-          echo "Fingerprint:"
-          ssh-keygen -l -f ~/.ssh/id_rsa || echo "Could not get fingerprint"
+          echo "🔍 Checking SSH key format:"
+          file ~/.ssh/id_rsa || echo "❌ Key file error"
+          echo "🔑 Fingerprint:"
+          ssh-keygen -l -f ~/.ssh/id_rsa || echo "❌ Invalid key format"
 
-      - name: Test SSH Connection
+      - name: 🧪 Test SSH Connection
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $EC2_USERNAME@$EC2_HOST "echo '✅ SSH connection successful'" || echo "❌ SSH connection failed"
+          echo "🧪 Attempting SSH connection..."
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $EC2_USERNAME@$EC2_HOST "echo ✅ SSH connection successful" || echo "❌ SSH connection failed"
 
-      - name: Test SCP File Transfer
+      - name: 🚚 Test SCP File Transfer
         run: |
-          echo "Test file" > test.txt
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no test.txt $EC2_USERNAME@$EC2_HOST:~/test.txt || echo "❌ SCP failed"
+          echo "📄 Test file" > test.txt
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no test.txt $EC2_USERNAME@$EC2_HOST:~/test.txt || echo "❌ SCP file upload failed"
 
-      - name: SSH & Deploy to EC2
+      - name: 🚀 Deploy to EC2 via SSH
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa $EC2_USERNAME@$EC2_HOST << 'EOF'
+          echo "🚀 Starting remote deployment on EC2..."
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $EC2_USERNAME@$EC2_HOST << 'EOF'
             set -e
-            echo "✅ Logged into EC2"
+            echo "✅ Logged into EC2 instance"
 
-            cd ~/sec-tools || mkdir -p ~/sec-tools && cd ~/sec-tools
-            echo "Uploading project..."
+            echo "📁 Preparing project directory..."
+            mkdir -p ~/sec-tools
+            cd ~/sec-tools
 
-            # Docker check
+            echo "📦 Docker check..."
             if ! command -v docker &> /dev/null; then
-              echo "Installing Docker..."
+              echo "🔧 Installing Docker..."
               sudo yum update -y
               sudo yum install -y docker
               sudo service docker start
@@ -146,21 +146,25 @@ jobs:
               sudo systemctl enable docker
             fi
 
-            # Docker Compose check
+            echo "🧱 Docker Compose check..."
             if ! command -v docker-compose &> /dev/null; then
-              echo "Installing Docker Compose..."
+              echo "🔧 Installing Docker Compose..."
               sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
               sudo chmod +x /usr/local/bin/docker-compose
             fi
 
-            echo "Starting Docker Compose..."
+            echo "🧹 Cleaning up and rebuilding containers..."
             docker-compose down || true
             docker-compose up --build -d
 
+            echo "📊 Container status:"
             docker-compose ps
 
             PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-            echo "✅ Deployment Complete!"
-            echo "Frontend: http://$PUBLIC_IP:3000"
-            echo "Backend: http://$PUBLIC_IP:8080"
+            echo "✅ Deployment complete!"
+            echo "🌐 Frontend: http://$PUBLIC_IP:3000"
+            echo "🔌 Backend: http://$PUBLIC_IP:8080"
           EOF
+
+      - name: ✅ Done
+        run: echo "🎉 Workflow finished!"
