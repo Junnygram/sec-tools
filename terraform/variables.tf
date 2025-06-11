@@ -25,7 +25,7 @@ variable "instance_type" {
 variable "key_name" {
   description = "Name of the SSH key pair"
   type        = string
-  default     = "junnyOpsKey"
+  default     = "junnyOpsKey.pem"
 }
 
 variable "environment" {
