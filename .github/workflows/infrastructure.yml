@@ -12,32 +12,32 @@ on:
     paths:
       - 'terraform/**'
   workflow_dispatch:
-    inputs:
-      action:
-        description: 'Action to perform (apply or destroy)'
-        required: true
-        default: 'apply'
-        type: choice
-        options:
-          - apply
-          - destroy
+    # inputs:
+    #   action:
+    #     description: 'Action to perform (apply or destroy)'
+    #     required: true
+    #     default: 'apply'
+    #     type: choice
+    #     options:
+    #       - apply
+    #       - destroy
 
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ vars.AWS_REGION }}
-  S3_BUCKET: security-tools-buckett
-  TF_VAR_key_name: junnyOpsKey
+  S3_BUCKET: ${{ secrets.BUCKET }}
+  TF_VAR_key_name: ${{ secrets.SSH_KEY  }}
 
-concurrency:
-  group: terraform-${{ github.ref }}
-  cancel-in-progress: false
+# concurrency:
+#   group: terraform-${{ github.ref }}
+#   cancel-in-progress: false
 
 jobs:
-  terraform-apply:
-    name: 'Terraform Apply'
+  terraform:
+    name: 'Deploy Infra with Terraform on AWS'
     runs-on: ubuntu-latest
-    if: github.event.inputs.action != 'destroy'
+    if: github.event_name == 'push'
 
     defaults:
       run:
@@ -51,13 +51,6 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
       - name: Terraform Init
         id: init
         run: terraform init -backend-config="bucket=$S3_BUCKET" -backend-config="key=terraform.tfstate" -backend-config="region=$AWS_REGION"
@@ -65,6 +58,22 @@ jobs:
       - name: Terraform Validate
         id: validate
         run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color -input=false -out=tfplan
+        continue-on-error: true
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup SSH Key
         run: |
@@ -77,15 +86,6 @@ jobs:
             aws ec2 import-key-pair --key-name $KEY_NAME --public-key-material "${{ secrets.SSH_PUBLIC_KEY }}" --region $AWS_REGION
             echo "SSH key pair created successfully"
           fi
-
-      - name: Terraform Plan
-        id: plan
-        run: terraform plan -no-color -input=false -out=tfplan
-        continue-on-error: true
-
-      - name: Terraform Plan Status
-        if: steps.plan.outcome == 'failure'
-        run: exit 1
 
       - name: Terraform Apply
         id: apply
@@ -105,9 +105,9 @@ jobs:
           echo "============================================================"
 
   terraform-destroy:
-    name: 'Terraform Destroy'
+    name: 'Destroy Infra on AWS'
     runs-on: ubuntu-latest
-    if: github.event.inputs.action == 'destroy'
+    if: github.event_name == 'workflow_dispatch'
 
     defaults:
       run:

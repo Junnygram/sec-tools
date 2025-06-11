@@ -61,44 +61,47 @@ jobs:
           if [[ "${{ github.event.inputs.ssh_debug }}" == "true" ]]; then
             SSH_DEBUG="-v"
           fi
-          
+
           # SSH into EC2 and deploy
           ssh $SSH_DEBUG -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} << 'EOF'
-            # Install Docker if not already installed
+            set -e
+
+            # Install Docker if not already installed (Ubuntu)
             if ! command -v docker &> /dev/null; then
               echo "Installing Docker..."
-              sudo yum update -y
-              sudo yum install -y docker
-              sudo service docker start
-              sudo usermod -a -G docker $USER
+              sudo apt update -y
+              sudo apt install -y docker.io
+              sudo systemctl start docker
+              sudo usermod -aG docker $USER
               sudo systemctl enable docker
             fi
 
             # Install Docker Compose if not already installed
             if ! command -v docker-compose &> /dev/null; then
               echo "Installing Docker Compose..."
-              sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+                -o /usr/local/bin/docker-compose
               sudo chmod +x /usr/local/bin/docker-compose
             fi
-            
+
             # Clone the repository
             echo "Cloning repository..."
             rm -rf ~/sec-tools
             git clone https://github.com/Junnygram/sec-tools.git ~/sec-tools
-            
+
             # Navigate to project directory
             cd ~/sec-tools
-            
+
             # Build and start containers
             echo "Building Docker containers..."
             docker-compose build
-            
+
             echo "Starting Docker containers..."
             docker-compose up -d
-            
+
             # Print container status
             docker-compose ps
-            
+
             # Get the public IP address
             PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
             echo "Application deployed successfully!"
