@@ -91,7 +91,7 @@ env:
 
 jobs:
   deploy:
-    name: Deploy to EC2 with Debug
+    name: Deploy to EC2 (Raw PEM Key)
     runs-on: ubuntu-latest
 
     env:
@@ -102,10 +102,10 @@ jobs:
       - name: 📦 Checkout Code
         uses: actions/checkout@v3
 
-      - name: 🔐 Set Up SSH Key
+      - name: 🔐 Set Up SSH Key (raw PEM)
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
       - name: 🛠️ Check SSH Key Format
