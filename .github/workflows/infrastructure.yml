@@ -25,19 +25,19 @@ on:
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_REGION: ${{ vars.AWS_REGION  }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
   S3_BUCKET: security-tools-buckett
-  TF_VAR_key_name: junnyOpsKey
-  # TF_VAR_key_name: ${{ secrets.SSH_KEY_NAME }}
+  TF_VAR_key_name: ${{ secrets.SSH_KEY_NAME || 'security-tools-key' }}
 
 concurrency:
   group: terraform-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  terraform:
-    name: 'Terraform Infrastructure'
+  terraform-apply:
+    name: 'Terraform Apply'
     runs-on: ubuntu-latest
+    if: github.event.inputs.action != 'destroy'
 
     defaults:
       run:
@@ -66,9 +66,20 @@ jobs:
         id: validate
         run: terraform validate
 
+      - name: Setup SSH Key
+        run: |
+          # Add SSH key to AWS if it doesn't exist
+          KEY_NAME=${{ env.TF_VAR_key_name }}
+          KEY_EXISTS=$(aws ec2 describe-key-pairs --key-names $KEY_NAME --query 'KeyPairs[*].KeyName' --output text --region $AWS_REGION || echo "")
+          
+          if [ -z "$KEY_EXISTS" ] && [ -n "${{ secrets.SSH_PUBLIC_KEY }}" ]; then
+            echo "Creating SSH key pair $KEY_NAME..."
+            aws ec2 import-key-pair --key-name $KEY_NAME --public-key-material "${{ secrets.SSH_PUBLIC_KEY }}" --region $AWS_REGION
+            echo "SSH key pair created successfully"
+          fi
+
       - name: Terraform Plan
         id: plan
-        if: github.event.inputs.action != 'destroy'
         run: terraform plan -no-color -input=false -out=tfplan
         continue-on-error: true
 
@@ -78,12 +89,51 @@ jobs:
 
       - name: Terraform Apply
         id: apply
-        if: github.event_name == 'push' && github.event.inputs.action != 'destroy'
         run: terraform apply -auto-approve -input=false tfplan
+
+      - name: Output EC2 Information
+        if: steps.apply.outcome == 'success'
+        run: |
+          echo "============================================================"
+          echo "EC2 INSTANCE CREATED SUCCESSFULLY"
+          echo "============================================================"
+          echo "EC2 Public IP: $(terraform output -raw ec2_public_ip)"
+          echo "Frontend URL: $(terraform output -raw frontend_url)"
+          echo "Backend URL: $(terraform output -raw backend_url)"
+          echo "============================================================"
+          echo "IMPORTANT: Add the EC2 Public IP to GitHub Secrets as EC2_HOST"
+          echo "============================================================"
+
+  terraform-destroy:
+    name: 'Terraform Destroy'
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'destroy'
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./terraform
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -backend-config="bucket=$S3_BUCKET" -backend-config="key=terraform.tfstate" -backend-config="region=$AWS_REGION"
 
       - name: Terraform Destroy
         id: destroy
-        if: github.event.inputs.action == 'destroy'
         run: |
           terraform destroy -auto-approve -input=false
           
@@ -96,16 +146,3 @@ jobs:
             echo "Infrastructure destruction failed, keeping state file"
             exit 1
           fi
-
-      - name: Output EC2 Information
-        if: github.event_name == 'push' && github.event.inputs.action != 'destroy' && steps.apply.outcome == 'success'
-        run: |
-          echo "============================================================"
-          echo "EC2 INSTANCE CREATED SUCCESSFULLY"
-          echo "============================================================"
-          echo "EC2 Public IP: $(terraform output -raw ec2_public_ip)"
-          echo "Frontend URL: $(terraform output -raw frontend_url)"
-          echo "Backend URL: $(terraform output -raw backend_url)"
-          echo "============================================================"
-          echo "IMPORTANT: Add the EC2 Public IP to GitHub Secrets as EC2_HOST"
-          echo "============================================================"
