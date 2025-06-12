@@ -24,6 +24,7 @@ const UserCheck = () => {
     try {
       const data = await checkUsernameAvailability(searchUsername);
       setResults(data);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       // console.error('Error checking username:', error);
     } finally {
@@ -211,7 +212,7 @@ const UserCheck = () => {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2, duration: 0.5 }}
               >
-                Results for "
+                Results for
                 <motion.span
                   className="text-primary"
                   initial={{ opacity: 0 }}
@@ -237,7 +238,6 @@ const UserCheck = () => {
                     </motion.span>
                   ))}
                 </motion.span>
-                "
               </motion.h2>
             </motion.div>
           )}
