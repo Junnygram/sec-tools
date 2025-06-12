@@ -32,13 +32,54 @@ env:
   SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
 jobs:
-  deploy:
-    name: 'Deploy to EC2'
+  scan-and-deploy:
+    name: 'Scan and Deploy to EC2'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy -y
+
+      - name: Build Docker images locally for scanning
+        run: |
+          docker-compose build
+
+      - name: Scan Frontend Image
+        run: |
+          trivy image --format json --output frontend-scan.json sec-tools_frontend:latest
+
+      - name: Scan Backend Image
+        run: |
+          trivy image --format json --output backend-scan.json sec-tools_backend:latest
+
+      - name: Combine scan reports
+        run: |
+          echo '{"frontend":' > trivy-report.json
+          cat frontend-scan.json >> trivy-report.json
+          echo ',"backend":' >> trivy-report.json
+          cat backend-scan.json >> trivy-report.json
+          echo '}' >> trivy-report.json
+
+      - name: Send Email Notification
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USER }}
+          password: ${{ secrets.EMAIL_PASS }}
+          subject: "Docker Image Scan Report"
+          to: ${{ secrets.EMAIL_TO }}
+          from: GitHub CI/CD <${{ secrets.EMAIL_USER }}>
+          body: "The Trivy scan report is attached. Job Done"
+          attachments: trivy-report.json
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4

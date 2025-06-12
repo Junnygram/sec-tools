@@ -7,13 +7,13 @@ import (
 type CheckResult struct {
 	Platform string `json:"platform"`
 	URL      string `json:"url"`
-	Status   string `json:"status"` 
+	Status   string `json:"status"`
 	Code     int    `json:"code"`
 }
 
 var platforms = map[string]string{
 	"Instagram": "https://www.instagram.com/",
-	"X":"https://twitter.com/",
+	"X":         "https://twitter.com/",
 	"Facebook":  "https://www.facebook.com/",
 	"YouTube":   "https://www.youtube.com/user/",
 	"Reddit":    "https://www.reddit.com/user/",

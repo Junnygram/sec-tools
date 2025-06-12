@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
@@ -18,20 +18,20 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   placeholder,
   buttonText,
   buttonColor,
-  inputType = 'text'
+  inputType = 'text',
 }) => {
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Basic validation
     if (!query.trim()) {
       setError('Please enter a value');
       return;
     }
-    
+
     setError('');
     onSearch(query.trim());
   };
@@ -40,9 +40,9 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   const getColorClasses = () => {
     switch (buttonColor) {
       case 'primary':
-        return 'bg-primary hover:bg-primary/90';
+        return 'bg-indigo hover:bg-indigo/90';
       case 'secondary':
-        return 'bg-secondary hover:bg-secondary/90';
+        return 'bg-teal-500 hover:bg-teal/20';
       case 'blue':
         return 'bg-blue-500 hover:bg-blue-600';
       case 'green':
@@ -68,11 +68,13 @@ export const SearchInput: React.FC<SearchInputProps> = ({
               placeholder={placeholder}
               className={`w-full px-4 py-3 rounded-lg border ${
                 error ? 'border-red-500' : 'border-gray-300'
-              } focus:outline-none focus:ring-2 focus:ring-${buttonColor === 'primary' ? 'primary' : buttonColor} focus:border-transparent bg-background`}
+              } focus:outline-none focus:ring-2 focus:ring-${
+                buttonColor === 'primary' ? 'primary' : buttonColor
+              } focus:border-transparent bg-background`}
               disabled={isLoading}
             />
           </div>
-          
+
           <motion.button
             type="submit"
             className={`${getColorClasses()} text-white px-6 py-3 rounded-lg transition-colors flex items-center justify-center`}
@@ -93,7 +95,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
             )}
           </motion.button>
         </div>
-        
+
         {error && (
           <motion.p
             initial={{ opacity: 0, y: -10 }}

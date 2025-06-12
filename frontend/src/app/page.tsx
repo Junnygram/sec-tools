@@ -5,7 +5,6 @@ import {
   Search,
   Globe,
   Shield,
-  Database,
   Server,
   Lock,
   AlertTriangle,
@@ -56,8 +55,8 @@ export default function Home() {
             <Link href="/userchecker" className="block">
               <div className="bg-card border border-border rounded-lg p-6 h-full hover:shadow-lg transition-shadow">
                 <div className="flex items-center mb-4">
-                  <div className="p-3 bg-primary/10 rounded-full">
-                    <Search className="h-6 w-6 text-primary" />
+                  <div className="p-3 bg-indigo-500/10 rounded-full">
+                    <Search className="h-6 w-6 text-indigo-500" />
                   </div>
                   <h2 className="text-2xl font-bold ml-3">Username Checker</h2>
                 </div>
@@ -66,7 +65,9 @@ export default function Home() {
                   platforms and websites.
                 </p>
                 <div className="flex justify-end">
-                  <span className="text-primary font-medium">Try it now →</span>
+                  <span className="text-indigo-500 font-medium">
+                    Try it now →
+                  </span>
                 </div>
               </div>
             </Link>
@@ -80,8 +81,8 @@ export default function Home() {
             <Link href="/whoislookup" className="block">
               <div className="bg-card border border-border rounded-lg p-6 h-full hover:shadow-lg transition-shadow">
                 <div className="flex items-center mb-4">
-                  <div className="p-3 bg-secondary/10 rounded-full">
-                    <Globe className="h-6 w-6 text-secondary" />
+                  <div className="p-3 bg-teal-500/10 rounded-full">
+                    <Globe className="h-6 w-6 text-teal-500" />
                   </div>
                   <h2 className="text-2xl font-bold ml-3">WHOIS Lookup</h2>
                 </div>
@@ -90,7 +91,7 @@ export default function Home() {
                   and expiration dates.
                 </p>
                 <div className="flex justify-end">
-                  <span className="text-secondary font-medium">
+                  <span className="text-teal-500 font-medium">
                     Try it now →
                   </span>
                 </div>
@@ -190,12 +191,11 @@ export default function Home() {
                   <h2 className="text-2xl font-bold ml-3">Phishing Detector</h2>
                 </div>
                 <p className="text-muted-foreground mb-4">
-                  Analyze URLs for phishing indicators and check against known malicious databases.
+                  Analyze URLs for phishing indicators and check against known
+                  malicious databases.
                 </p>
                 <div className="flex justify-end">
-                  <span className="text-red-500 font-medium">
-                    Try it now →
-                  </span>
+                  <span className="text-red-500 font-medium">Try it now →</span>
                 </div>
               </div>
             </Link>
