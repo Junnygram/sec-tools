@@ -19,7 +19,7 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   S3_BUCKET: ${{ vars.BUCKET }}
   # TF_VAR_key_name: ${{ secrets.SSH_KEY  }}
-  TF_VAR_key_name: junnyOpskey
+  TF_VAR_key_name: junnyOpskey.pem
 
 jobs:
   terraform:
