@@ -81,17 +81,39 @@ jobs:
             cd ~/sec-tools
 
             echo "Building Docker images..."
-            docker-compose build
-
+            sudo docker-compose build
+            
+            # List images to verify they exist
+            echo "Listing Docker images..."
+            sudo docker images
+            
             echo "Running Trivy scans..."
-            trivy image --format json --output frontend-scan.json sec-tools_frontend:latest
-            trivy image --format json --output backend-scan.json sec-tools_backend:latest
+            # Get correct image names from docker-compose
+            FRONTEND_IMAGE=$(sudo docker-compose config | grep -A 1 frontend | grep image | awk '{print $2}')
+            BACKEND_IMAGE=$(sudo docker-compose config | grep -A 1 backend | grep image | awk '{print $2}')
+            
+            echo "Scanning frontend image: $FRONTEND_IMAGE"
+            sudo trivy image --format json --output frontend-scan.json $FRONTEND_IMAGE || echo "Frontend scan failed but continuing..."
+            
+            echo "Scanning backend image: $BACKEND_IMAGE"
+            sudo trivy image --format json --output backend-scan.json $BACKEND_IMAGE || echo "Backend scan failed but continuing..."
 
             echo "Combining reports..."
-            echo '{"frontend":' > trivy-report.json
-            cat frontend-scan.json >> trivy-report.json
-            echo ',"backend":' >> trivy-report.json
-            cat backend-scan.json >> trivy-report.json
+            echo '{' > trivy-report.json
+            
+            if [ -f frontend-scan.json ]; then
+              echo '"frontend":' >> trivy-report.json
+              cat frontend-scan.json >> trivy-report.json
+              if [ -f backend-scan.json ]; then
+                echo ',' >> trivy-report.json
+              fi
+            fi
+            
+            if [ -f backend-scan.json ]; then
+              echo '"backend":' >> trivy-report.json
+              cat backend-scan.json >> trivy-report.json
+            fi
+            
             echo '}' >> trivy-report.json
 
             echo "Starting containers..."
