@@ -18,8 +18,8 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ vars.AWS_REGION }}
   S3_BUCKET: ${{ vars.BUCKET }}
-  # TF_VAR_key_name: ${{ secrets.SSH_KEY  }}
-  TF_VAR_key_name: junnyOpskey.pem
+
+  TF_VAR_key_name: junnyOpskey
 
 jobs:
   terraform:
