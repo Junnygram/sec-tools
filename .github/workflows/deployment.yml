@@ -59,10 +59,10 @@ jobs:
           sudo apt-get install trivy -y
 
       - name: Scan Frontend Image
-        run: trivy image --format json --output frontend-scan.json sec-tools-frontend-1
+        run: trivy image --format json --output frontend-scan.json sec-tools-frontend
 
       - name: Scan Backend Image
-        run: trivy image --format json --output backend-scan.json  sec-tools-backend-1
+        run: trivy image --format json --output backend-scan.json  sec-tools-backend
 
       - name: Combine Scan Reports
         run: |
