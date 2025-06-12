@@ -27,3 +27,6 @@ EXPOSE 8080
 
 # Command to run the binary
 CMD ["./server"]
+
+
+#
