@@ -18,7 +18,8 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: ${{ vars.AWS_REGION }}
   S3_BUCKET: ${{ vars.BUCKET }}
-  TF_VAR_key_name: ${{ secrets.SSH_KEY  }}
+  # TF_VAR_key_name: ${{ secrets.SSH_KEY  }}
+  TF_VAR_key_name: junnyOpskey
 
 jobs:
   terraform:
@@ -65,7 +66,7 @@ jobs:
       - name: Setup SSH Key
         run: |
           # Add SSH key to AWS if it doesn't exist
-          KEY_NAME=${{ env.TF_VAR_key_name }}
+          KEY_NAME=${{ env.TF_VAR_key_name  }}
           KEY_EXISTS=$(aws ec2 describe-key-pairs --key-names $KEY_NAME --query 'KeyPairs[*].KeyName' --output text --region $AWS_REGION || echo "")
 
           if [ -z "$KEY_EXISTS" ] && [ -n "${{ secrets.SSH_PUBLIC_KEY }}" ]; then
