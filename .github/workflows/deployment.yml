@@ -62,7 +62,7 @@ jobs:
         run: trivy image --format json --output frontend-scan.json sec-tools-frontend
 
       - name: Scan Backend Image
-        run: trivy image --format json --output backend-scan.json  sec-tools-backend
+        run: trivy image --format json --output backend-scan.json sec-tools-backend
 
       - name: Combine Scan Reports
         run: |
@@ -73,9 +73,17 @@ jobs:
           echo '}' >> trivy-report.json
 
       - name: Send Email Notification
-        run: |
-          sudo apt-get update && sudo apt-get install -y mailutils
-          echo "Docker scan complete. Report attached." | mail -s "Docker Image Scan Report" -a trivy-report.json ${{ secrets.EMAIL_TO }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USER }}
+          password: ${{ secrets.EMAIL_PASS }}
+          subject: 'Docker Image Scan Report'
+          to: ${{ secrets.EMAIL_TO }}
+          from: GitHub CI/CD <${{ secrets.EMAIL_USER }}>
+          body: 'The Trivy scan report is attached. Job Done'
+          attachments: trivy-report.json
 
       - name: Setup SSH Access
         run: |
