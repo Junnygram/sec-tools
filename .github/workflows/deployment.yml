@@ -1,141 +1,83 @@
-name: 'Deploy to EC2'
+name: EC2 Deploy & Scan
 
 on:
   push:
-    branches: main
+    branches: [main]
     paths:
       - 'frontend/**'
       - 'backend/**'
       - 'docker-compose.yml'
-  pull_request:
-
   workflow_dispatch:
-    inputs:
-      ssh_debug:
-        description: 'Enable SSH debugging'
-        required: false
-        type: boolean
-        default: false
 
 env:
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_REGION: ${{ vars.AWS_REGION }}
-  EC2_HOST: ${{ secrets.EC2_HOST }}
   EC2_USERNAME: ubuntu
-  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
 jobs:
   deploy:
-    name: 'Install, Scan and Deploy on EC2'
+    name: Build, Scan and Deploy on EC2
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+      - name: Mask Secrets
+        run: |
+          echo "::add-mask::${{ secrets.SSH_PRIVATE_KEY }}"
+          echo "::add-mask::${{ secrets.EMAIL_PASS }}"
 
-      - name: Set up SSH Access
+      - name: Setup SSH Access
         run: |
           mkdir -p ~/.ssh
-          echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: SSH into EC2 and install, scan, deploy
+      - name: SSH into EC2 and run deployment
         run: |
-          SSH_DEBUG=""
-          if [[ "${{ github.event.inputs.ssh_debug }}" == "true" ]]; then
-            SSH_DEBUG="-v"
-          fi
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
+          set -e
 
-          ssh $SSH_DEBUG -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} << 'EOF'
-            set -e
+          echo "Installing Docker, Compose, Trivy..."
+          sudo apt update -y
+          sudo apt install -y docker.io curl wget apt-transport-https gnupg lsb-release mailutils
 
-            echo "Installing Docker and Docker Compose..."
-            sudo apt update -y
-            sudo apt install -y docker.io curl wget apt-transport-https gnupg lsb-release
-            sudo systemctl start docker
-            sudo systemctl enable docker
-            sudo usermod -aG docker $USER
+          sudo systemctl start docker
+          sudo systemctl enable docker
+          sudo usermod -aG docker $USER
 
-            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
-              -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
+          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+            -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
 
-            echo "Installing Trivy..."
-            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-            echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
-            sudo apt-get update
-            sudo apt-get install -y trivy
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
 
-            echo "Cloning latest code..."
-            rm -rf ~/sec-tools
-            git clone https://github.com/Junnygram/sec-tools.git ~/sec-tools
-            cd ~/sec-tools
+          echo "Cloning project..."
+          rm -rf ~/sec-tools
+          git clone https://github.com/Junnygram/sec-tools.git ~/sec-tools
+          cd ~/sec-tools
 
-            echo "Building Docker images..."
-            sudo docker-compose build
-            
-            # List images to verify they exist
-            echo "Listing Docker images..."
-            sudo docker images
-            
-            echo "Running Trivy scans..."
-            # Get correct image names from docker-compose
-            FRONTEND_IMAGE=$(sudo docker-compose config | grep -A 1 frontend | grep image | awk '{print $2}')
-            BACKEND_IMAGE=$(sudo docker-compose config | grep -A 1 backend | grep image | awk '{print $2}')
-            
-            echo "Scanning frontend image: $FRONTEND_IMAGE"
-            sudo trivy image --format json --output frontend-scan.json $FRONTEND_IMAGE || echo "Frontend scan failed but continuing..."
-            
-            echo "Scanning backend image: $BACKEND_IMAGE"
-            sudo trivy image --format json --output backend-scan.json $BACKEND_IMAGE || echo "Backend scan failed but continuing..."
+          echo "Building images..."
+          sudo docker-compose build
 
-            echo "Sending scan reports via email..."
-            if [ -f frontend-scan.json ] && [ -f backend-scan.json ]; then
-              # Install mail utilities if needed
-              sudo apt-get install -y mailutils
-              
-              # Send the email with both scan reports attached
-              echo "Security scan completed. See attached reports." | mail -s "Security Scan Reports" \
-                -a frontend-scan.json -a backend-scan.json ${{ secrets.EMAIL_TO }}
-              
-              echo "Email sent with scan reports"
-            else
-              echo "Scan reports not found, skipping email"
-            fi
+          FRONTEND_IMAGE=$(docker-compose config | awk '/frontend:/{getline; if($1=="image:") print $2}')
+          BACKEND_IMAGE=$(docker-compose config | awk '/backend:/{getline; if($1=="image:") print $2}')
 
-            echo "Starting containers..."
-            docker-compose up -d
-            docker-compose ps
+          echo "Scanning images with Trivy..."
+          sudo trivy image --format json -o frontend-scan.json $FRONTEND_IMAGE || echo "Frontend scan failed"
+          sudo trivy image --format json -o backend-scan.json $BACKEND_IMAGE || echo "Backend scan failed"
 
-            PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-            echo "Deployment complete!"
-            echo "Frontend: http://$PUBLIC_IP:3000"
-            echo "Backend:  http://$PUBLIC_IP:8080"
+          echo "Sending reports..."
+          echo "Security scan completed. See attached reports." | mail -s "Trivy Scan Reports" \
+            -a frontend-scan.json -a backend-scan.json ${{ secrets.EMAIL_TO }}
+
+          echo "Running containers..."
+          docker-compose down
+          docker-compose up -d
+
+          echo "✅ Deployment complete!"
+          echo "Frontend should be live on http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):3000"
           EOF
-
-      - name: Send Deployment Notification
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.EMAIL_USER }}
-          password: ${{ secrets.EMAIL_PASS }}
-          subject: 'Deployment Complete - Security Tools'
-          to: ${{ secrets.EMAIL_TO }}
-          from: GitHub CI/CD <${{ secrets.EMAIL_USER }}>
-          body: |
-            Deployment to EC2 has been completed successfully.
-            
-            The security scan reports were sent directly from the EC2 instance.
-            If you did not receive the scan reports, please check the EC2 instance logs.
-            
-            Deployment timestamp: ${{ github.event.repository.updated_at }}
