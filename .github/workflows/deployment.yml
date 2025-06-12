@@ -1,25 +1,137 @@
+# name: 'Deploy to EC2'
+
+# on:
+#   push:
+#     branches: main
+#     paths:
+#       - 'frontend/**'
+#       - 'backend/**'
+#       - 'docker-compose.yml'
+#   pull_request:
+#     branches: [main]
+#     paths:
+#       - 'frontend/**'
+#       - 'backend/**'
+#       - 'docker-compose.yml'
+#   workflow_dispatch:
+#     inputs:
+#       ssh_debug:
+#         description: 'Enable SSH debugging'
+#         required: false
+#         type: boolean
+#         default: false
+
+# env:
+#   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#   AWS_REGION: ${{ vars.AWS_REGION }}
+#   EC2_HOST: ${{ secrets.EC2_HOST }}
+#   EC2_USERNAME: ubuntu
+#   SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+# jobs:
+#   deploy:
+#     name: 'Install, Scan and Deploy on EC2'
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout Code
+#         uses: actions/checkout@v4
+
+#       - name: Configure AWS Credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ env.AWS_REGION }}
+
+#       - name: Set up SSH Access
+#         run: |
+#           mkdir -p ~/.ssh
+#           echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+#           chmod 600 ~/.ssh/id_rsa
+#           ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
+
+#       - name: SSH into EC2 and install, scan, deploy
+#         run: |
+#           SSH_DEBUG=""
+#           if [[ "${{ github.event.inputs.ssh_debug }}" == "true" ]]; then
+#             SSH_DEBUG="-v"
+#           fi
+
+#           ssh $SSH_DEBUG -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} << 'EOF'
+#             set -e
+
+#             echo "Installing Docker and Docker Compose..."
+#             sudo apt update -y
+#             sudo apt install -y docker.io curl wget apt-transport-https gnupg lsb-release
+#             sudo systemctl start docker
+#             sudo systemctl enable docker
+#             sudo usermod -aG docker $USER
+
+#             sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+#               -o /usr/local/bin/docker-compose
+#             sudo chmod +x /usr/local/bin/docker-compose
+
+#             echo "Installing Trivy..."
+#             wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+#             echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+#             sudo apt-get update
+#             sudo apt-get install -y trivy
+
+#             echo "Cloning latest code..."
+#             rm -rf ~/sec-tools
+#             git clone https://github.com/Junnygram/sec-tools.git ~/sec-tools
+#             cd ~/sec-tools
+
+#             echo "Building Docker images..."
+#             docker-compose build
+
+#             echo "Running Trivy scans..."
+#             trivy image --format json --output frontend-scan.json sec-tools_frontend:latest
+#             trivy image --format json --output backend-scan.json sec-tools_backend:latest
+
+#             echo "Combining reports..."
+#             echo '{"frontend":' > trivy-report.json
+#             cat frontend-scan.json >> trivy-report.json
+#             echo ',"backend":' >> trivy-report.json
+#             cat backend-scan.json >> trivy-report.json
+#             echo '}' >> trivy-report.json
+
+#             echo "Starting containers..."
+#             docker-compose up -d
+#             docker-compose ps
+
+#             PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+#             echo "Deployment complete!"
+#             echo "Frontend: http://$PUBLIC_IP:3000"
+#             echo "Backend:  http://$PUBLIC_IP:8080"
+#           EOF
+
 name: 'Deploy to EC2'
 
 on:
   push:
-    branches: main
+    branches:
+      - main
     paths:
       - 'frontend/**'
       - 'backend/**'
       - 'docker-compose.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - 'backend/**'
-      - 'docker-compose.yml'
-  workflow_dispatch:
+  workflow_dispatch: # Enables manual trigger
     inputs:
       ssh_debug:
         description: 'Enable SSH debugging'
         required: false
         type: boolean
         default: false
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'docker-compose.yml'
 
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -31,79 +143,78 @@ env:
 
 jobs:
   deploy:
-    name: 'Install, Scan and Deploy on EC2'
+    name: 'Deploy to EC2'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Set up SSH Access
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: SSH into EC2 and install, scan, deploy
+      - name: Deploy to EC2
         run: |
+          # Set SSH debug flag if requested
           SSH_DEBUG=""
           if [[ "${{ github.event.inputs.ssh_debug }}" == "true" ]]; then
             SSH_DEBUG="-v"
           fi
 
+          # SSH into EC2 and deploy
           ssh $SSH_DEBUG -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ env.EC2_USERNAME }}@${{ env.EC2_HOST }} << 'EOF'
             set -e
 
-            echo "Installing Docker and Docker Compose..."
-            sudo apt update -y
-            sudo apt install -y docker.io curl wget apt-transport-https gnupg lsb-release
-            sudo systemctl start docker
-            sudo systemctl enable docker
-            sudo usermod -aG docker $USER
+            # Install Docker if not already installed (Ubuntu)
+            if ! command -v docker &> /dev/null; then
+              echo "Installing Docker..."
+              sudo apt update -y
+              sudo apt install -y docker.io
+              sudo systemctl start docker
+              sudo usermod -aG docker $USER
+              sudo systemctl enable docker
+            fi
 
-            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
-              -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
+            # Install Docker Compose if not already installed
+            if ! command -v docker-compose &> /dev/null; then
+              echo "Installing Docker Compose..."
+              sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+                -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+            fi
 
-            echo "Installing Trivy..."
-            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-            echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
-            sudo apt-get update
-            sudo apt-get install -y trivy
-
-            echo "Cloning latest code..."
+            # Clone the repository
+            echo "Cloning repository..."
             rm -rf ~/sec-tools
             git clone https://github.com/Junnygram/sec-tools.git ~/sec-tools
+
+            # Navigate to project directory
             cd ~/sec-tools
 
-            echo "Building Docker images..."
+            # Build and start containers
+            echo "Building Docker containers..."
             docker-compose build
 
-            echo "Running Trivy scans..."
-            trivy image --format json --output frontend-scan.json sec-tools_frontend:latest
-            trivy image --format json --output backend-scan.json sec-tools_backend:latest
-
-            echo "Combining reports..."
-            echo '{"frontend":' > trivy-report.json
-            cat frontend-scan.json >> trivy-report.json
-            echo ',"backend":' >> trivy-report.json
-            cat backend-scan.json >> trivy-report.json
-            echo '}' >> trivy-report.json
-
-            echo "Starting containers..."
+            echo "Starting Docker containers..."
             docker-compose up -d
+
+            # Print container status
             docker-compose ps
 
+            # Get the public IP address
             PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-            echo "Deployment complete!"
-            echo "Frontend: http://$PUBLIC_IP:3000"
-            echo "Backend:  http://$PUBLIC_IP:8080"
+            echo "Application deployed successfully!"
+            echo "Frontend URL: http://$PUBLIC_IP:3000"
+            echo "Backend URL: http://$PUBLIC_IP:8080"
           EOF
