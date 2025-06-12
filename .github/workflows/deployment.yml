@@ -98,23 +98,19 @@ jobs:
             echo "Scanning backend image: $BACKEND_IMAGE"
             sudo trivy image --format json --output backend-scan.json $BACKEND_IMAGE || echo "Backend scan failed but continuing..."
 
-            echo "Combining reports..."
-            echo '{' > trivy-report.json
-            
-            if [ -f frontend-scan.json ]; then
-              echo '"frontend":' >> trivy-report.json
-              cat frontend-scan.json >> trivy-report.json
-              if [ -f backend-scan.json ]; then
-                echo ',' >> trivy-report.json
-              fi
+            echo "Sending scan reports via email..."
+            if [ -f frontend-scan.json ] && [ -f backend-scan.json ]; then
+              # Install mail utilities if needed
+              sudo apt-get install -y mailutils
+              
+              # Send the email with both scan reports attached
+              echo "Security scan completed. See attached reports." | mail -s "Security Scan Reports" \
+                -a frontend-scan.json -a backend-scan.json ${{ secrets.EMAIL_TO }}
+              
+              echo "Email sent with scan reports"
+            else
+              echo "Scan reports not found, skipping email"
             fi
-            
-            if [ -f backend-scan.json ]; then
-              echo '"backend":' >> trivy-report.json
-              cat backend-scan.json >> trivy-report.json
-            fi
-            
-            echo '}' >> trivy-report.json
 
             echo "Starting containers..."
             docker-compose up -d
@@ -126,15 +122,20 @@ jobs:
             echo "Backend:  http://$PUBLIC_IP:8080"
           EOF
 
-      - name: Send Email Notification
+      - name: Send Deployment Notification
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
           username: ${{ secrets.EMAIL_USER }}
           password: ${{ secrets.EMAIL_PASS }}
-          subject: 'Docker Image Scan Report'
+          subject: 'Deployment Complete - Security Tools'
           to: ${{ secrets.EMAIL_TO }}
           from: GitHub CI/CD <${{ secrets.EMAIL_USER }}>
-          body: 'The Trivy scan report is attached. Job Done'
-          attachments: trivy-report.json
+          body: |
+            Deployment to EC2 has been completed successfully.
+            
+            The security scan reports were sent directly from the EC2 instance.
+            If you did not receive the scan reports, please check the EC2 instance logs.
+            
+            Deployment timestamp: ${{ github.event.repository.updated_at }}
