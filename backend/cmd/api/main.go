@@ -44,6 +44,25 @@ func main() {
 	log.Fatal(http.ListenAndServe(port, wrappedMux))
 }
 
+// func setCorsHeaders(w http.ResponseWriter, r *http.Request) {
+// 	origin := r.Header.Get("Origin")
+// 	allowedOrigins := []string{
+// 		"http://localhost:3000",
+// 		"http://44.196.112.117:3000",
+// 	}
+
+// 	for _, allowed := range allowedOrigins {
+// 		if origin == allowed {
+// 			w.Header().Set("Access-Control-Allow-Origin", origin)
+// 			break
+// 		}
+// 	}
+
+// 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+// 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+// 	w.Header().Set("Access-Control-Allow-Credentials", "true")
+// }
+
 func setCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
 	allowedOrigins := []string{
@@ -54,6 +73,7 @@ func setCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	for _, allowed := range allowedOrigins {
 		if origin == allowed {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin") // <-- Important for caching proxies
 			break
 		}
 	}
