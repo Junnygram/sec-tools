@@ -26,7 +26,17 @@ func main() {
 	mux.HandleFunc("/port", handlePortScan)
 	mux.HandleFunc("/phishing", handlePhishingCheck)
 
-	// Wrap all routes with CORS middleware
+	// 🛡️ Catch-all handler for OPTIONS and unknown routes
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			setCorsHeaders(w, r)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		http.NotFound(w, r)
+	})
+
+	// ✅ Wrap all routes with CORS middleware
 	wrappedMux := corsMiddleware(mux)
 
 	port := ":8080"
@@ -34,16 +44,23 @@ func main() {
 	log.Fatal(http.ListenAndServe(port, wrappedMux))
 }
 
-// setCorsHeaders sets CORS headers based on the request origin
 func setCorsHeaders(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
+	allowedOrigins := []string{
+		"http://localhost:3000",
+		"http://44.196.112.117:3000",
+	}
 
-	if origin == "http://localhost:3000" || origin == "http://44.196.112.117:3000" {
-		w.Header().Set("Access-Control-Allow-Origin", origin)
+	for _, allowed := range allowedOrigins {
+		if origin == allowed {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			break
+		}
 	}
 
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 }
 
 // corsMiddleware handles CORS and preflight requests
