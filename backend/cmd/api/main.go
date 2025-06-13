@@ -31,6 +31,8 @@ func main() {
 
 // setCorsHeaders sets CORS headers for all responses
 func setCorsHeaders(w http.ResponseWriter) {
+
+	w.Header().Set("Access-Control-Allow-Origin", "44.196.112.117")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")

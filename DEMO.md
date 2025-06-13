@@ -1,4 +1,4 @@
-# Security Tools Suite - Beginner-Friendly Workflow Guide
+# Security Tools Suite - Complete Workflow Guide
 
 ## Introduction for Beginners
 
