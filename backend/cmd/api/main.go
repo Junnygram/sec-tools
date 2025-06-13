@@ -26,16 +26,6 @@ func main() {
 	mux.HandleFunc("/port", handlePortScan)
 	mux.HandleFunc("/phishing", handlePhishingCheck)
 
-	// 🛡️ Catch-all handler for OPTIONS and unknown routes
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodOptions {
-			setCorsHeaders(w, r)
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		http.NotFound(w, r)
-	})
-
 	// ✅ Wrap all routes with CORS middleware
 	wrappedMux := corsMiddleware(mux)
 
@@ -44,30 +34,12 @@ func main() {
 	log.Fatal(http.ListenAndServe(port, wrappedMux))
 }
 
-func setCorsHeaders(w http.ResponseWriter, r *http.Request) {
-	origin := r.Header.Get("Origin")
-	allowedOrigins := []string{
-		"http://localhost:3000",
-		"http://44.196.112.117:3000",
-	}
-
-	for _, allowed := range allowedOrigins {
-		if origin == allowed {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			break
-		}
-	}
-
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-}
-
-// corsMiddleware handles CORS and preflight requests
+// ✅ Global CORS Middleware
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		setCorsHeaders(w, r)
 
+		// Handle preflight requests globally
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -77,6 +49,24 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// ✅ Set CORS headers for allowed origins
+func setCorsHeaders(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	allowedOrigins := map[string]bool{
+		"http://localhost:3000":      true,
+		"http://44.196.112.117:3000": true,
+	}
+
+	if allowedOrigins[origin] {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	}
+
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+}
+
+// 🔍 Check username availability
 func handleCheckUsername(w http.ResponseWriter, r *http.Request) {
 	user := r.URL.Query().Get("user")
 	if user == "" {
@@ -85,11 +75,11 @@ func handleCheckUsername(w http.ResponseWriter, r *http.Request) {
 	}
 
 	results := username.CheckAllPlatforms(user)
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
 }
 
+// 🌐 WHOIS lookup
 func handleWhoisLookup(w http.ResponseWriter, r *http.Request) {
 	domain := r.URL.Query().Get("domain")
 	if domain == "" {
@@ -98,11 +88,11 @@ func handleWhoisLookup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := whois.LookupDomain(domain)
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
 
+// 📡 DNS lookup
 func handleDNSLookup(w http.ResponseWriter, r *http.Request) {
 	domain := r.URL.Query().Get("domain")
 	if domain == "" {
@@ -111,11 +101,11 @@ func handleDNSLookup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := dns.LookupDNS(domain)
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
 
+// 🔐 SSL/TLS check
 func handleSSLCheck(w http.ResponseWriter, r *http.Request) {
 	domain := r.URL.Query().Get("domain")
 	if domain == "" {
@@ -124,11 +114,11 @@ func handleSSLCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := ssl.CheckSSL(domain)
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
 
+// 🔌 Port scanning
 func handlePortScan(w http.ResponseWriter, r *http.Request) {
 	host := r.URL.Query().Get("host")
 	if host == "" {
@@ -166,6 +156,7 @@ func handlePortScan(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
+// 🧠 Phishing check
 func handlePhishingCheck(w http.ResponseWriter, r *http.Request) {
 	phishing.HandlePhishingCheck(w, r)
 }
