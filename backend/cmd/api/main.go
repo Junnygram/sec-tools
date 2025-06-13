@@ -17,43 +17,50 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/check", handleCheckUsername)
-	http.HandleFunc("/whois", handleWhoisLookup)
-	http.HandleFunc("/dns", handleDNSLookup)
-	http.HandleFunc("/ssl", handleSSLCheck)
-	http.HandleFunc("/port", handlePortScan)
-	http.HandleFunc("/phishing", handlePhishingCheck)
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/check", handleCheckUsername)
+	mux.HandleFunc("/whois", handleWhoisLookup)
+	mux.HandleFunc("/dns", handleDNSLookup)
+	mux.HandleFunc("/ssl", handleSSLCheck)
+	mux.HandleFunc("/port", handlePortScan)
+	mux.HandleFunc("/phishing", handlePhishingCheck)
+
+	// Wrap all routes with CORS middleware
+	wrappedMux := corsMiddleware(mux)
 
 	port := ":8080"
 	log.Printf("🚀 Starting server on %s\n", port)
-	log.Fatal(http.ListenAndServe(port, nil))
+	log.Fatal(http.ListenAndServe(port, wrappedMux))
 }
 
-// setCorsHeaders sets CORS headers for all responses
-func setCorsHeaders(w http.ResponseWriter) {
+// setCorsHeaders sets CORS headers based on the request origin
+func setCorsHeaders(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
 
-	w.Header().Set("Access-Control-Allow-Origin", "44.196.112.117")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-}
-
-// handleOptionsRequest handles preflight OPTIONS requests
-func handleOptionsRequest(w http.ResponseWriter, r *http.Request) bool {
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return true
+	if origin == "http://localhost:3000" || origin == "http://44.196.112.117:3000" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
 	}
-	return false
+
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+}
+
+// corsMiddleware handles CORS and preflight requests
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		setCorsHeaders(w, r)
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func handleCheckUsername(w http.ResponseWriter, r *http.Request) {
-	setCorsHeaders(w)
-
-	if handleOptionsRequest(w, r) {
-		return
-	}
-
 	user := r.URL.Query().Get("user")
 	if user == "" {
 		http.Error(w, "Missing 'user' query param", http.StatusBadRequest)
@@ -67,12 +74,6 @@ func handleCheckUsername(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleWhoisLookup(w http.ResponseWriter, r *http.Request) {
-	setCorsHeaders(w)
-
-	if handleOptionsRequest(w, r) {
-		return
-	}
-
 	domain := r.URL.Query().Get("domain")
 	if domain == "" {
 		http.Error(w, "Missing 'domain' query param", http.StatusBadRequest)
@@ -86,12 +87,6 @@ func handleWhoisLookup(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleDNSLookup(w http.ResponseWriter, r *http.Request) {
-	setCorsHeaders(w)
-
-	if handleOptionsRequest(w, r) {
-		return
-	}
-
 	domain := r.URL.Query().Get("domain")
 	if domain == "" {
 		http.Error(w, "Missing 'domain' query param", http.StatusBadRequest)
@@ -105,12 +100,6 @@ func handleDNSLookup(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleSSLCheck(w http.ResponseWriter, r *http.Request) {
-	setCorsHeaders(w)
-
-	if handleOptionsRequest(w, r) {
-		return
-	}
-
 	domain := r.URL.Query().Get("domain")
 	if domain == "" {
 		http.Error(w, "Missing 'domain' query param", http.StatusBadRequest)
@@ -124,26 +113,18 @@ func handleSSLCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlePortScan(w http.ResponseWriter, r *http.Request) {
-	setCorsHeaders(w)
-
-	if handleOptionsRequest(w, r) {
-		return
-	}
-
 	host := r.URL.Query().Get("host")
 	if host == "" {
 		http.Error(w, "Missing 'host' query param", http.StatusBadRequest)
 		return
 	}
 
-	// Parse optional parameters
 	portsParam := r.URL.Query().Get("ports")
 	timeoutParam := r.URL.Query().Get("timeout")
 
 	var ports []int
 	if portsParam != "" {
-		portStrings := strings.Split(portsParam, ",")
-		for _, portStr := range portStrings {
+		for _, portStr := range strings.Split(portsParam, ",") {
 			if p, err := strconv.Atoi(portStr); err == nil && p > 0 && p < 65536 {
 				ports = append(ports, p)
 			}
@@ -169,12 +150,5 @@ func handlePortScan(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlePhishingCheck(w http.ResponseWriter, r *http.Request) {
-	setCorsHeaders(w)
-
-	if handleOptionsRequest(w, r) {
-		return
-	}
-
-	// Use the handler from the phishing package
 	phishing.HandlePhishingCheck(w, r)
 }

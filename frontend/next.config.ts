@@ -1,15 +1,13 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
+// next.config.js
+const nextConfig = {
   async rewrites() {
     return [
       {
-        source: 'http://localhost:8080',
-        destination: 'http://44.196.112.117:8080',
+        source: '/api/:path*',
+        destination: 'http://44.196.112.117:8080/api/:path*', // Go backend
       },
     ];
   },
-  /* config options here */
 };
 
 export default nextConfig;
