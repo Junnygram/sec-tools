@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: 'http://localhost:8080',
-        destination: 'http://44.196.112.117',
+        destination: 'http://44.196.112.117:8080',
       },
     ];
   },
